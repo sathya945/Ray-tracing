@@ -3,10 +3,19 @@ using namespace std;
 
 
 // const int h = 400,w = 300;
-const int h = 1200,w = 900;
-float wall_reflec = 0;
+// const int h = 1200,w = 900;
+const int h = 1920,w = 1280;
+
+int max_reflections = 6;
+
+bool refraction  = false;
+// bool refraction  = true;
+
+
+float wall_reflec = 0.1;
 float floor_reflec = 0;
 float div_dis = 100;
+
 
 unsigned char img[h][w][3];
 
@@ -17,14 +26,13 @@ vector<triangle> triangles;
 
 vector<glm::vec3> L_list{glm::vec3(-4,-5,6),glm::vec3(4,-5,3)};
 
-int max_reflections = 4;
 float ambient = 0.1;
 float diffuse_c = 1,specular_c = 0.5,specular_k = 50;
 
 void push(){
     glm::mat4 M = glm::mat4(1.0f);
     draw_checker();
-    sphere_list.push_back( sphere(glm::vec3(-3,4,8),2,{0.75,0.75,0.75},0.1));    
+    sphere_list.push_back( sphere(glm::vec3(-3,4,8),2,{0.75,0.75,0.75},0.5));    
     // sphere_list.push_back( sphere(glm::vec3(4,4,8),2,{0.75,0.75,0.75},0.2));    
     
     sphere_list.push_back( sphere(glm::vec3(-4,5,4),1,{0,1,0},0)) ;    
@@ -35,6 +43,7 @@ void push(){
 	
 bool intersect(Ray ray, sphere s, float* t1, float *t2)
 {
+
 	//solve for tc
 	glm::vec3 L = s.cen - ray.origin;
 	float tc = glm::dot(L, ray.dir);
@@ -48,6 +57,11 @@ bool intersect(Ray ray, sphere s, float* t1, float *t2)
 	float t1c = sqrt( radius2 - d2 );
 
 	//solve for intersection points
+    if(ray.inside){
+    *t2 = tc - t1c;
+	*t1 = tc + t1c;
+    return true;
+    }
 	*t1 = tc - t1c;
 	*t2 = tc + t1c;
 	
@@ -63,6 +77,8 @@ pair<pair<int,int>,float> trace_ray(Ray ray){
     for(int i=0;i<sphere_list.size();i++){
         float t1,t2;
         if(intersect(ray,sphere_list[i],&t1,&t2)){
+            // if(t2<t1)cout << t1<<" "<< t2;
+            
             if(t1<near_dis){
                 near_dis =t1;
                 obj_type = 1;
@@ -79,7 +95,6 @@ pair<pair<int,int>,float> trace_ray(Ray ray){
                 obj_type =2;
                 obj_index = i;
             }
-
         }
     }
 
@@ -98,11 +113,37 @@ color_t find_color(Ray* ray){
     
     ray->intersect = surface_point;
     if(obj_type==1){
+        bool temp = true;
+        if(refraction && obj_index==0){
+            glm::vec3 N = sphere_list[obj_index].get_normal(surface_point);
+            glm::vec3 i = ray->dir;
+            float nu =1.05;
+            if(ray->inside){nu = 1/nu;N=-N;}
+            // cout << "ha";
+            float a=-glm::dot(i,N),b=nu*nu*sqrt(1-a*a);
+            if(b<1){
+            temp= false;
+            // cout << ray->inside;
+            ray->inside = !ray->inside;
+             ray->reflec_dir = normalize( nu *i + (nu*a-sqrt(1-b) ) *N);
+            //  cout << glm::dot(i,ray->reflec_dir);
+        
+             ray->surface_type = sphere_list[obj_index].surface_type;
+            if(ray->inside) ray->intersect = surface_point - 0.0001f*ray->reflec_dir;
+            else ray->intersect = surface_point + 0.0001f*ray->reflec_dir;
+            }
+        }
+
+if(temp==true){
         glm::vec3 N = sphere_list[obj_index].get_normal(surface_point);
         glm::vec3 L = ray->dir;
         ray->reflec_dir = -normalize(2*glm::dot(N,L)*N-L);
         ray->surface_type = sphere_list[obj_index].surface_type;
         ray->intersect = surface_point + 0.0001f*ray->reflec_dir;
+}
+
+
+
     }
     if(obj_type==2){
         glm::vec3 N = triangles[obj_index].n;
@@ -187,6 +228,7 @@ int main(){
             lookat.x = x,lookat.y = y;
 
             ray.origin = cam_pos;
+            ray.inside = false;
             ray.dir = normalize(lookat-cam_pos);
 
             color_t color = {0,0,0};
@@ -205,6 +247,7 @@ int main(){
                 factor *= ray.surface_type;
                 reflections += 1;
             }
+            // cout <<endl;
             img[j][i][0] = min(int(color.r/sum*256),255);
             img[j][i][1] = min(int(color.g/sum*256),255);
             img[j][i][2] = min(int(color.b/sum*256),255);

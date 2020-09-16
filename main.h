@@ -19,6 +19,7 @@ struct Ray
     glm::vec3 intersect;
     glm::vec3 reflec_dir;
     float surface_type;
+    bool inside=false;
 };
 
 glm::vec3 normalize(glm::vec3 a);
