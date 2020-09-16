@@ -2,19 +2,21 @@
 #include "main.h"
 
 using namespace std;
-triangle::triangle(glm::vec3 v1,glm::vec3 v2,glm::vec3 v3,color_t col){
+triangle::triangle(glm::vec3 v1,glm::vec3 v2,glm::vec3 v3,color_t col,float surface_reflec){
             this->v1 = v1;
             this->v2 = v2;
             this->v3 = v3;
             this->n = glm::normalize(glm::cross(v3-v2,v1-v2));
             this->color = col;
+            this->surface_type = surface_reflec;
         }
-triangle::triangle(glm::vec3 v1,glm::vec3 v2,glm::vec3 v3,color_t col,int a){
+triangle::triangle(glm::vec3 v1,glm::vec3 v2,glm::vec3 v3,color_t col,float surface_reflec,int a){
             this->v1 = v1;
             this->v2 = v2;
             this->v3 = v3;
             this->n = -glm::normalize(glm::cross(v3-v2,v1-v2));
             this->color = col;
+            this->surface_type = surface_reflec;
         }
 bool triangle::PointInTriangle(glm::vec3 pt)
         {
@@ -52,11 +54,21 @@ bool triangle::RayIntersectsTriangle(Ray ray,float *t)
 }
 
 
+color_t triangle::get_color(glm::vec3 pos){
+        if(this->color.r!=-1)return this->color;
+        int a = floor(pos.x);
+        int b = floor(pos.z);
+        if( (a+b)%2==0)return {0.5,0,0};
+        else return {0,0,0.5};
 
-sphere::sphere(glm::vec3 cen,float r,color_t color){
+}
+
+
+sphere::sphere(glm::vec3 cen,float r,color_t color,float surface_reflec){
     this->cen = cen;
     this->r = r;
     this->color =color;
+    this->surface_type = surface_reflec;
 }
 glm::vec3 sphere::get_normal(glm::vec3 p){
     return normalize(p-this->cen);
